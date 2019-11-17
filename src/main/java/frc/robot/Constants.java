@@ -7,7 +7,7 @@ public class Constants {
 	 * Using CTRE Magnetic Encoder.
 	 * @link https://github.com/CrossTheRoadElec/Phoenix-Documentation#what-are-the-units-of-my-sensor
 	 */
-	public final static int kSensorUnitsPerRot = 1024;
+	public final static int kSensorUnitsPerRot = 652;
 	
 	/**
 	 * Motor neutral dead-band, set to the minimum 0.1%.
