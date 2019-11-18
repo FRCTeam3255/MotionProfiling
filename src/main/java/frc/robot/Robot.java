@@ -72,8 +72,12 @@ import java.util.Arrays;
 
 import com.ctre.phoenix.motion.*;
 import edu.wpi.first.wpilibj.Joystick;
+import edu.wpi.first.wpilibj.SpeedController;
+import edu.wpi.first.wpilibj.SpeedControllerGroup;
 import edu.wpi.first.wpilibj.TimedRobot;
 import edu.wpi.first.wpilibj.buttons.JoystickButton;
+import edu.wpi.first.wpilibj.drive.DifferentialDrive;
+import edu.wpi.first.networktables.NetworkTableInstance;
 import edu.wpi.first.wpilibj.Filesystem;;
 
 public class Robot extends TimedRobot {
@@ -82,9 +86,8 @@ public class Robot extends TimedRobot {
     int _state = 0;
 
     /** a master talon, add followers if need be. */
-    TalonSRX _rightMaster = new TalonSRX(0);
-
-    TalonSRX _leftMaster = new TalonSRX(1);
+    WPI_TalonSRX _rightMaster = new WPI_TalonSRX(0);
+    WPI_TalonSRX _leftMaster = new WPI_TalonSRX(1);
 
     /** gamepad for control */
     Joystick _joy = new Joystick(0);
@@ -99,6 +102,12 @@ public class Robot extends TimedRobot {
 
     /* quick and dirty plotter to smartdash */
     PlotThread _plotThread = new PlotThread(_rightMaster);
+
+    private DifferentialDrive _Drive = new DifferentialDrive(_leftMaster,_rightMaster);
+
+    private boolean m_LimelightHasValidTarget = false;
+    private double m_LimelightDriveCommand = 0.0;
+    private double m_LimelightSteerCommand = 0.0;
 
     public void robotInit() {
 
@@ -133,6 +142,8 @@ public class Robot extends TimedRobot {
         _config.slot0.closedLoopPeakOutput = Constants.kGains_MotProf.kPeakOutput;
         _rightMaster.configAllSettings(_config);
 
+
+
         /* -------------- _config the left ----------------- */
         _leftMaster.configAllSettings(_config); /* no special configs */
 
@@ -150,10 +161,14 @@ public class Robot extends TimedRobot {
                 20); /* plotthread is polling aux-pid-sensor-pos */
         _leftMaster.setStatusFramePeriod(StatusFrame.Status_10_Targets, 20);
         _leftMaster.setStatusFramePeriod(StatusFrame.Status_17_Targets1, 20);
+
+
+
     }
 
     public void robotPeriodic() {
         /* get joystick button and stick */
+        Update_Limelight_Tracking();
         boolean bPrintValues = _joy.getRawButton(2);
         boolean bFireMp = _joy.getRawButton(1);
         double axis = -1.0 * _joy.getRawAxis(1); /* forward stick should be positive */
@@ -171,8 +186,7 @@ public class Robot extends TimedRobot {
              * some clever use of the arbitratry feedforward to add the turn, there are many
              * alternative ways to do this
              */
-            _rightMaster.set(ControlMode.PercentOutput, axis, DemandType.ArbitraryFeedForward, +turn);
-            _leftMaster.set(ControlMode.PercentOutput, axis, DemandType.ArbitraryFeedForward, -turn);
+            _Drive.arcadeDrive(axis,turn);
             if (bFireMp == true) {
                 /* go to MP logic */
                 _state = 1;
@@ -193,6 +207,11 @@ public class Robot extends TimedRobot {
             // if (_rightMaster.isMotionProfileFinished()) {
             if (_rightMaster.isMotionProfileFinished() && _leftMaster.isMotionProfileFinished()) {
                 Instrum.printLine("MP finished");
+                
+                if (m_LimelightHasValidTarget)
+                {
+                    _Drive.arcadeDrive(m_LimelightDriveCommand,m_LimelightSteerCommand);
+                }
                 _state = 3;
             }
             break;
@@ -204,6 +223,41 @@ public class Robot extends TimedRobot {
 
         /* print MP values */
         Instrum.loop(bPrintValues, _rightMaster);
+    }
+
+    public void Update_Limelight_Tracking() {
+        // These numbers must be tuned for your Robot! Be careful!
+        final double STEER_K = 0.03; // how hard to turn toward the target
+        final double DRIVE_K = 0.26; // how hard to drive fwd toward the target
+        final double DESIRED_TARGET_AREA = 13.0; // Area of the target when the robot reaches the wall
+        final double MAX_DRIVE = 0.7; // Simple speed limit so we don't drive too fast
+
+        double tv = NetworkTableInstance.getDefault().getTable("limelight").getEntry("tv").getDouble(0);
+        double tx = NetworkTableInstance.getDefault().getTable("limelight").getEntry("tx").getDouble(0);
+        double ty = NetworkTableInstance.getDefault().getTable("limelight").getEntry("ty").getDouble(0);
+        double ta = NetworkTableInstance.getDefault().getTable("limelight").getEntry("ta").getDouble(0);
+
+        if (tv < 1.0) {
+            m_LimelightHasValidTarget = false;
+            m_LimelightDriveCommand = 0.0;
+            m_LimelightSteerCommand = 0.0;
+            return;
+        }
+
+        m_LimelightHasValidTarget = true;
+
+        // Start with proportional steering
+        double steer_cmd = tx * STEER_K;
+        m_LimelightSteerCommand = steer_cmd;
+
+        // try to drive forward until the target area reaches our desired area
+        double drive_cmd = (DESIRED_TARGET_AREA - ta) * DRIVE_K;
+
+        // don't let the robot drive too fast into the goal
+        if (drive_cmd > MAX_DRIVE) {
+            drive_cmd = MAX_DRIVE;
+        }
+        m_LimelightDriveCommand = drive_cmd;
     }
 
     /**
