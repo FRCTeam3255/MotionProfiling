@@ -65,10 +65,16 @@ import com.ctre.phoenix.motorcontrol.*;
 import com.ctre.phoenix.motorcontrol.can.*;
 import com.ctre.phoenix.platform.can.AutocacheState;
 import com.ctre.phoenix.sensors.PigeonIMU;
+
+import java.io.FileNotFoundException;
+import java.io.IOException;
+import java.util.Arrays;
+
 import com.ctre.phoenix.motion.*;
 import edu.wpi.first.wpilibj.Joystick;
 import edu.wpi.first.wpilibj.TimedRobot;
 import edu.wpi.first.wpilibj.buttons.JoystickButton;
+import edu.wpi.first.wpilibj.Filesystem;;
 
 public class Robot extends TimedRobot {
 
@@ -80,26 +86,39 @@ public class Robot extends TimedRobot {
 
     TalonSRX _leftMaster = new TalonSRX(1);
 
-
     /** gamepad for control */
     Joystick _joy = new Joystick(0);
+    double[] arr = new double[3];
 
     /** new class type in 2019 for holding MP buffer. */
     BufferedTrajectoryPointStream _bufferedStreamLeft = new BufferedTrajectoryPointStream();
     BufferedTrajectoryPointStream _bufferedStreamRight = new BufferedTrajectoryPointStream();
 
     /* talon _config. */
-    TalonSRXConfiguration _config= new TalonSRXConfiguration(); // factory default settings
-    
+    TalonSRXConfiguration _config = new TalonSRXConfiguration(); // factory default settings
+
     /* quick and dirty plotter to smartdash */
     PlotThread _plotThread = new PlotThread(_rightMaster);
 
     public void robotInit() {
 
-        /* fill our buffer object with the excel points, 
-            lets do a 90 deg turn while using the profile for the robot drive*/
-        initBuffer(_bufferedStreamLeft, MotionProfile.PointsLeft, MotionProfile.kNumPoints, 0);
-        initBuffer(_bufferedStreamRight, MotionProfile.PointsRight, MotionProfile.kNumPoints, 0);
+        /*
+         * fill our buffer object with the excel points, lets do a 90 deg turn while
+         * using the profile for the robot drive
+         */
+        try {
+            initBuffer(_bufferedStreamLeft, MotionProfile.reader("1_left.csv"), MotionProfile.kNumPoints, 0);
+        } catch (IOException e) {
+            System.out.println("initBuffer failed :(. Is your file in deploy?");
+            e.printStackTrace();
+        }
+
+        try {
+            initBuffer(_bufferedStreamRight, MotionProfile.reader("1_right.csv"), MotionProfile.kNumPoints, 0);
+        } catch (IOException e) {
+            System.out.println("initBuffer failed :(. Is your file in deploy?");
+            e.printStackTrace();
+        }
 
         /* -------------- config the master specific settings ----------------- */
 
@@ -123,10 +142,12 @@ public class Robot extends TimedRobot {
         _rightMaster.setInverted(true); /* right side has to apply +V to M-, to go forward */
 
         /* speed up the target polling for PID[0] and PID-aux[1] */
-        _rightMaster.setStatusFramePeriod(StatusFrame.Status_12_Feedback1, 20); /* plotthread is polling aux-pid-sensor-pos */
+        _rightMaster.setStatusFramePeriod(StatusFrame.Status_12_Feedback1,
+                20); /* plotthread is polling aux-pid-sensor-pos */
         _rightMaster.setStatusFramePeriod(StatusFrame.Status_10_Targets, 20);
         _rightMaster.setStatusFramePeriod(StatusFrame.Status_17_Targets1, 20);
-        _leftMaster.setStatusFramePeriod(StatusFrame.Status_12_Feedback1, 20); /* plotthread is polling aux-pid-sensor-pos */
+        _leftMaster.setStatusFramePeriod(StatusFrame.Status_12_Feedback1,
+                20); /* plotthread is polling aux-pid-sensor-pos */
         _leftMaster.setStatusFramePeriod(StatusFrame.Status_10_Targets, 20);
         _leftMaster.setStatusFramePeriod(StatusFrame.Status_17_Targets1, 20);
     }
@@ -144,39 +165,41 @@ public class Robot extends TimedRobot {
         }
 
         switch (_state) {
-	        /* drive master talon normally */
-	        case 0:
-	            /* some clever use of the arbitratry feedforward to add the turn, there are many
-	             * alternative ways to do this */
-	            _rightMaster.set(ControlMode.PercentOutput, axis, DemandType.ArbitraryFeedForward, +turn);
-	            _leftMaster.set(ControlMode.PercentOutput, axis, DemandType.ArbitraryFeedForward, -turn);
-	            if (bFireMp == true) {
-	                /* go to MP logic */
-	                _state = 1;
-	            }
-	            break;
-	
-	        /* fire the MP, and stop calling set() since that will cancel the MP */
-	        case 1:
-	            ZeroAllSensors();
-	            _leftMaster.startMotionProfile(_bufferedStreamLeft, 10, ControlMode.MotionProfile);
-	            _rightMaster.startMotionProfile(_bufferedStreamRight, 10, ControlMode.MotionProfile);
-	            _state = 2;
-                Instrum.printLine("MP started");
-	            break;
-	
-	        /* wait for MP to finish */
-	        case 2:
-	            // if (_rightMaster.isMotionProfileFinished()) {
-	            if (_rightMaster.isMotionProfileFinished() && _leftMaster.isMotionProfileFinished()) {
-                    Instrum.printLine("MP finished");
-	                _state = 3;
-	            }
-	            break;
-	
-	        /* MP is finished, nothing to do */
-	        case 3:
-	            break;
+        /* drive master talon normally */
+        case 0:
+            /*
+             * some clever use of the arbitratry feedforward to add the turn, there are many
+             * alternative ways to do this
+             */
+            _rightMaster.set(ControlMode.PercentOutput, axis, DemandType.ArbitraryFeedForward, +turn);
+            _leftMaster.set(ControlMode.PercentOutput, axis, DemandType.ArbitraryFeedForward, -turn);
+            if (bFireMp == true) {
+                /* go to MP logic */
+                _state = 1;
+            }
+            break;
+
+        /* fire the MP, and stop calling set() since that will cancel the MP */
+        case 1:
+            ZeroAllSensors();
+            _leftMaster.startMotionProfile(_bufferedStreamLeft, 10, ControlMode.MotionProfile);
+            _rightMaster.startMotionProfile(_bufferedStreamRight, 10, ControlMode.MotionProfile);
+            _state = 2;
+            Instrum.printLine("MP started");
+            break;
+
+        /* wait for MP to finish */
+        case 2:
+            // if (_rightMaster.isMotionProfileFinished()) {
+            if (_rightMaster.isMotionProfileFinished() && _leftMaster.isMotionProfileFinished()) {
+                Instrum.printLine("MP finished");
+                _state = 3;
+            }
+            break;
+
+        /* MP is finished, nothing to do */
+        case 3:
+            break;
         }
 
         /* print MP values */
@@ -189,7 +212,8 @@ public class Robot extends TimedRobot {
      * @param profile  generated array from excel
      * @param totalCnt num points in profile
      */
-    private void initBuffer(BufferedTrajectoryPointStream bufferedStream, double[][] profile, int totalCnt, double finalTurnDeg) {
+    private void initBuffer(BufferedTrajectoryPointStream bufferedStream, double[][] profile, int totalCnt,
+            double finalTurnDeg) {
 
         boolean forward = true; // set to false to drive in opposite direction of profile (not really needed
                                 // since you can use negative numbers in profile).
@@ -204,12 +228,15 @@ public class Robot extends TimedRobot {
         for (int i = 0; i < totalCnt; ++i) {
 
             double direction = forward ? +1 : -1;
-            /* use the generated profile to figure out the forward arc path (translation)*/
+            /* use the generated profile to figure out the forward arc path (translation) */
             double positionRot = profile[i][0];
             double velocityRPM = profile[i][1];
             int durationMilliseconds = (int) profile[i][2];
 
-            /* to get the turn target, lets just scale from 0 deg to caller's final deg linearizly */
+            /*
+             * to get the turn target, lets just scale from 0 deg to caller's final deg
+             * linearizly
+             */
             // double targetTurnDeg = finalTurnDeg * (i + 1) / totalCnt;
 
             /* for each point, fill our structure and pass it to API */
@@ -221,12 +248,15 @@ public class Robot extends TimedRobot {
             point.arbFeedFwd = 0; // good place for kS, kV, kA, etc...
 
             /* turn part */
-            // point.auxiliaryPos = targetTurnDeg * Constants.kTurnUnitsPerDeg; // Convert deg to remote sensor units
-            // point.auxiliaryVel = 0; // advanced teams can also provide the target velocity
+            // point.auxiliaryPos = targetTurnDeg * Constants.kTurnUnitsPerDeg; // Convert
+            // deg to remote sensor units
+            // point.auxiliaryVel = 0; // advanced teams can also provide the target
+            // velocity
             // point.auxiliaryArbFeedFwd = 0; // good place for kS, kV, kA, etc...
 
             point.profileSlotSelect0 = Constants.kPrimaryPIDSlot; /* which set of gains would you like to use [0,3]? */
-            // point.profileSlotSelect1 = Constants.kAuxPIDSlot; /* auxiliary PID [0,1], leave zero */
+            // point.profileSlotSelect1 = Constants.kAuxPIDSlot; /* auxiliary PID [0,1],
+            // leave zero */
             point.zeroPos = false; /* don't reset sensor, this is done elsewhere since we have multiple sensors */
             point.isLastPoint = ((i + 1) == totalCnt); /* set this to true on the last point */
             point.useAuxPID = false; /* tell MPB that we are using both pids */
