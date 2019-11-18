@@ -6,8 +6,9 @@ import java.util.Scanner;
 import edu.wpi.first.wpilibj.Filesystem;
 
 public class MotionProfile {
-	public static final int kNumPoints = 146;
 
+
+	//counter taken from stackoverflow: https://stackoverflow.com/questions/18009416/how-to-count-total-rows-in-csv-using-java
 	public static int count(String filename) throws IOException {
 		InputStream is = new BufferedInputStream(
 				new FileInputStream(Filesystem.getDeployDirectory() + "\\" + filename));
@@ -44,7 +45,12 @@ public class MotionProfile {
 				String[] fields = line.split(",");
 					for (String field : fields){
 						if(j < 3){
-							output[i][j] = Double.parseDouble(field.replaceAll("\\s+",""));
+							if(fileName.contains("neg")&&(j==0||j==1)){
+							
+								output[i][j] = -Double.parseDouble(field.replaceAll("\\s+",""));
+							}else{
+								output[i][j] = Double.parseDouble(field.replaceAll("\\s+",""));
+							}
 						}
 						j++;
 						// System.out.print(field + "|");

@@ -94,8 +94,20 @@ public class Robot extends TimedRobot {
     double[] arr = new double[3];
 
     /** new class type in 2019 for holding MP buffer. */
-    BufferedTrajectoryPointStream _bufferedStreamLeft = new BufferedTrajectoryPointStream();
-    BufferedTrajectoryPointStream _bufferedStreamRight = new BufferedTrajectoryPointStream();
+    BufferedTrajectoryPointStream _bufferedStreamLeft1 = new BufferedTrajectoryPointStream();
+    BufferedTrajectoryPointStream _bufferedStreamRight1 = new BufferedTrajectoryPointStream();
+    /** new class type in 2019 for holding MP buffer. */
+    BufferedTrajectoryPointStream _bufferedStreamLeft2 = new BufferedTrajectoryPointStream();
+    BufferedTrajectoryPointStream _bufferedStreamRight2 = new BufferedTrajectoryPointStream();
+    /** new class type in 2019 for holding MP buffer. */
+    BufferedTrajectoryPointStream _bufferedStreamLeft3 = new BufferedTrajectoryPointStream();
+    BufferedTrajectoryPointStream _bufferedStreamRight3 = new BufferedTrajectoryPointStream();
+    /** new class type in 2019 for holding MP buffer. */
+    BufferedTrajectoryPointStream _bufferedStreamLeft4 = new BufferedTrajectoryPointStream();
+    BufferedTrajectoryPointStream _bufferedStreamRight4 = new BufferedTrajectoryPointStream();
+    /** new class type in 2019 for holding MP buffer. */
+    BufferedTrajectoryPointStream _bufferedStreamLeft5 = new BufferedTrajectoryPointStream();
+    BufferedTrajectoryPointStream _bufferedStreamRight5 = new BufferedTrajectoryPointStream();
 
     /* talon _config. */
     TalonSRXConfiguration _config = new TalonSRXConfiguration(); // factory default settings
@@ -103,7 +115,7 @@ public class Robot extends TimedRobot {
     /* quick and dirty plotter to smartdash */
     PlotThread _plotThread = new PlotThread(_rightMaster);
 
-    private DifferentialDrive _Drive = new DifferentialDrive(_leftMaster,_rightMaster);
+    private DifferentialDrive _Drive = new DifferentialDrive(_leftMaster, _rightMaster);
 
     private boolean m_LimelightHasValidTarget = false;
     private double m_LimelightDriveCommand = 0.0;
@@ -116,14 +128,84 @@ public class Robot extends TimedRobot {
          * using the profile for the robot drive
          */
         try {
-            initBuffer(_bufferedStreamLeft, MotionProfile.reader("1_left.csv"), MotionProfile.kNumPoints, 0);
+            initBuffer(_bufferedStreamLeft1, MotionProfile.reader("1_left.csv"), MotionProfile.count("1_right.csv"),
+                    0);
         } catch (IOException e) {
             System.out.println("initBuffer failed :(. Is your file in deploy?");
             e.printStackTrace();
         }
 
         try {
-            initBuffer(_bufferedStreamRight, MotionProfile.reader("1_right.csv"), MotionProfile.kNumPoints, 0);
+            initBuffer(_bufferedStreamRight1, MotionProfile.reader("1_right.csv"),
+                    MotionProfile.count("1_right.csv"), 0);
+        } catch (IOException e) {
+            System.out.println("initBuffer failed :(. Is your file in deploy?");
+            e.printStackTrace();
+        }
+
+
+        try {
+            initBuffer(_bufferedStreamLeft2, MotionProfile.reader("2neg_left.csv"), MotionProfile.count("2neg_right.csv"),
+                    0);
+        } catch (IOException e) {
+            System.out.println("initBuffer failed :(. Is your file in deploy?");
+            e.printStackTrace();
+        }
+
+        try {
+            initBuffer(_bufferedStreamRight2, MotionProfile.reader("2neg_right.csv"),
+                    MotionProfile.count("2neg_right.csv"), 0);
+        } catch (IOException e) {
+            System.out.println("initBuffer failed :(. Is your file in deploy?");
+            e.printStackTrace();
+        }
+
+
+
+        try {
+            initBuffer(_bufferedStreamLeft3, MotionProfile.reader("3_left.csv"), MotionProfile.count("3_right.csv"),
+                    0);
+        } catch (IOException e) {
+            System.out.println("initBuffer failed :(. Is your file in deploy?");
+            e.printStackTrace();
+        }
+        try {
+            initBuffer(_bufferedStreamRight3, MotionProfile.reader("3_right.csv"),
+                    MotionProfile.count("3_right.csv"), 0);
+        } catch (IOException e) {
+            System.out.println("initBuffer failed :(. Is your file in deploy?");
+            e.printStackTrace();
+        }
+
+
+        try {
+            initBuffer(_bufferedStreamLeft4, MotionProfile.reader("4neg_left.csv"), MotionProfile.count("4neg_right.csv"),
+                    0);
+        } catch (IOException e) {
+            System.out.println("initBuffer failed :(. Is your file in deploy?");
+            e.printStackTrace();
+        }
+
+        try {
+            initBuffer(_bufferedStreamRight4, MotionProfile.reader("4neg_right.csv"),
+                    MotionProfile.count("4neg_right.csv"), 0);
+        } catch (IOException e) {
+            System.out.println("initBuffer failed :(. Is your file in deploy?");
+            e.printStackTrace();
+        }
+
+
+        try {
+            initBuffer(_bufferedStreamLeft5, MotionProfile.reader("5_left.csv"), MotionProfile.count("5_right.csv"),
+                    0);
+        } catch (IOException e) {
+            System.out.println("initBuffer failed :(. Is your file in deploy?");
+            e.printStackTrace();
+        }
+
+        try {
+            initBuffer(_bufferedStreamRight5, MotionProfile.reader("5_right.csv"),
+                    MotionProfile.count("5_right.csv"), 0);
         } catch (IOException e) {
             System.out.println("initBuffer failed :(. Is your file in deploy?");
             e.printStackTrace();
@@ -142,8 +224,6 @@ public class Robot extends TimedRobot {
         _config.slot0.closedLoopPeakOutput = Constants.kGains_MotProf.kPeakOutput;
         _rightMaster.configAllSettings(_config);
 
-
-
         /* -------------- _config the left ----------------- */
         _leftMaster.configAllSettings(_config); /* no special configs */
 
@@ -161,8 +241,6 @@ public class Robot extends TimedRobot {
                 20); /* plotthread is polling aux-pid-sensor-pos */
         _leftMaster.setStatusFramePeriod(StatusFrame.Status_10_Targets, 20);
         _leftMaster.setStatusFramePeriod(StatusFrame.Status_17_Targets1, 20);
-
-
 
     }
 
@@ -186,7 +264,7 @@ public class Robot extends TimedRobot {
              * some clever use of the arbitratry feedforward to add the turn, there are many
              * alternative ways to do this
              */
-            _Drive.arcadeDrive(axis,turn);
+            _Drive.arcadeDrive(axis, turn);
             if (bFireMp == true) {
                 /* go to MP logic */
                 _state = 1;
@@ -196,8 +274,8 @@ public class Robot extends TimedRobot {
         /* fire the MP, and stop calling set() since that will cancel the MP */
         case 1:
             ZeroAllSensors();
-            _leftMaster.startMotionProfile(_bufferedStreamLeft, 10, ControlMode.MotionProfile);
-            _rightMaster.startMotionProfile(_bufferedStreamRight, 10, ControlMode.MotionProfile);
+            _leftMaster.startMotionProfile(_bufferedStreamLeft1, 10, ControlMode.MotionProfile);
+            _rightMaster.startMotionProfile(_bufferedStreamRight1, 10, ControlMode.MotionProfile);
             _state = 2;
             Instrum.printLine("MP started");
             break;
@@ -207,17 +285,87 @@ public class Robot extends TimedRobot {
             // if (_rightMaster.isMotionProfileFinished()) {
             if (_rightMaster.isMotionProfileFinished() && _leftMaster.isMotionProfileFinished()) {
                 Instrum.printLine("MP finished");
-                
-                if (m_LimelightHasValidTarget)
-                {
-                    _Drive.arcadeDrive(m_LimelightDriveCommand,m_LimelightSteerCommand);
-                }
                 _state = 3;
             }
             break;
 
-        /* MP is finished, nothing to do */
         case 3:
+            ZeroAllSensors();
+            _leftMaster.startMotionProfile(_bufferedStreamLeft2, 10, ControlMode.MotionProfile);
+            _rightMaster.startMotionProfile(_bufferedStreamRight2, 10, ControlMode.MotionProfile);
+            _state = 4;
+            Instrum.printLine("MP started");
+            break;
+
+        /* wait for MP to finish */
+        case 4:
+            
+            // if (_rightMaster.isMotionProfileFinished()) {
+                if (_rightMaster.isMotionProfileFinished() && _leftMaster.isMotionProfileFinished()) {
+                    Instrum.printLine("MP finished");
+                    _state = 5;
+                }
+            break;
+
+        case 5:
+            ZeroAllSensors();
+            _leftMaster.startMotionProfile(_bufferedStreamLeft3, 10, ControlMode.MotionProfile);
+            _rightMaster.startMotionProfile(_bufferedStreamRight3, 10, ControlMode.MotionProfile);
+            _state = 6;
+            Instrum.printLine("MP started");
+            break;
+
+        /* wait for MP to finish */
+        case 6:
+            // if (_rightMaster.isMotionProfileFinished()) {
+            
+            // if (_rightMaster.isMotionProfileFinished()) {
+                if (_rightMaster.isMotionProfileFinished() && _leftMaster.isMotionProfileFinished()) {
+                    Instrum.printLine("MP finished");
+                    _state = 7;
+                }
+            break;
+
+        case 7:
+            ZeroAllSensors();
+            _leftMaster.startMotionProfile(_bufferedStreamLeft4, 10, ControlMode.MotionProfile);
+            _rightMaster.startMotionProfile(_bufferedStreamRight4, 10, ControlMode.MotionProfile);
+            _state = 8;
+            Instrum.printLine("MP started");
+            break;
+
+        /* wait for MP to finish */
+        case 8:
+            // if (_rightMaster.isMotionProfileFinished()) {
+            
+            // if (_rightMaster.isMotionProfileFinished()) {
+                if (_rightMaster.isMotionProfileFinished() && _leftMaster.isMotionProfileFinished()) {
+                    Instrum.printLine("MP finished");
+                    _state = 9;
+                }
+            break;
+
+        case 9:
+            ZeroAllSensors();
+            _leftMaster.startMotionProfile(_bufferedStreamLeft5, 10, ControlMode.MotionProfile);
+            _rightMaster.startMotionProfile(_bufferedStreamRight5, 10, ControlMode.MotionProfile);
+            _state = 10;
+            Instrum.printLine("MP started");
+            break;
+
+        /* wait for MP to finish */
+        case 10:
+            // if (_rightMaster.isMotionProfileFinished()) {
+            
+            // if (_rightMaster.isMotionProfileFinished()) {
+                if (_rightMaster.isMotionProfileFinished() && _leftMaster.isMotionProfileFinished()) {
+                    Instrum.printLine("MP finished");
+                    _state = 11;
+                }
+            break;
+
+        /* MP is finished, nothing to do */
+        case 11:
             break;
         }
 
